@@ -513,16 +513,21 @@
           "response": []
         },
         {
-          "name": "Redeem - replay same key + same body",
+          "name": "Redeem - replay same key + same body (409)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "  pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "  pm.test('remaining 99', () => pm.expect(pm.response.json().data.remaining).to.eql(99));",
-                  "  pm.test('Idempotent-Replayed header', () => pm.expect(pm.response.headers.get('Idempotent-Replayed')).to.eql('true'));"
+                  "  pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "  pm.test('errorCode COUPON_ALREADY_REDEEMED', () => pm.expect(pm.response.json().errorCode).to.eql('COUPON_ALREADY_REDEEMED'));",
+                  "  pm.test('Idempotent-Replayed header', () => pm.expect(pm.response.headers.get('Idempotent-Replayed')).to.eql('true'));",
+                  "  pm.test('original result attached (201, remaining 99)', () => {",
+                  "    const original = pm.response.json().errors[0];",
+                  "    pm.expect(original.original_status).to.eql(201);",
+                  "    pm.expect(original.original_response.data.remaining).to.eql(99);",
+                  "  });"
                 ]
               }
             }
@@ -557,7 +562,7 @@
                 "redeem"
               ]
             },
-            "description": "Same Idempotency-Key and body as the previous request: returns the ORIGINAL response, nothing is redeemed again."
+            "description": "Same Idempotency-Key and body as the previous request: nothing is redeemed again. Returns 409 COUPON_ALREADY_REDEEMED with the original result in errors[0].original_response."
           },
           "response": []
         },
@@ -654,6 +659,55 @@
               ]
             },
             "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Redeem - replay of a rejected request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "  pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "  pm.test('errorCode COUPON_ALREADY_USED', () => pm.expect(pm.response.json().errorCode).to.eql('COUPON_ALREADY_USED'));",
+                  "  pm.test('Idempotent-Replayed header', () => pm.expect(pm.response.headers.get('Idempotent-Replayed')).to.eql('true'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{runId}}-k2"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{stdCode}}\",\n  \"customer_id\": \"{{alice}}\",\n  \"order_id\": \"ord-{{runId}}-2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/redeem",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "redeem"
+              ]
+            },
+            "description": "Re-sends the \"STANDARD already used\" request with its key: the original 409 error is returned again."
           },
           "response": []
         },
