@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const COUPON_TYPES = Object.freeze({
   STANDARD: 'STANDARD', // once per user
@@ -43,11 +43,35 @@ const couponSchema = new mongoose.Schema(
       enum: Object.values(COUPON_TYPES),
       default: COUPON_TYPES.STANDARD,
     },
+    // Who redeemed this coupon. Server-owned: an entry is pushed in the same atomic
+    // update that increments redemption_count, and pulled when that order is cancelled,
+    // so used_by.length always equals redemption_count.
+    used_by: {
+      type: [
+        new mongoose.Schema(
+          {
+            customer_id: { type: String, required: true },
+            order_id: { type: String, required: true },
+            used_at: { type: Date, required: true },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
+    // Id of the authenticated user who created the coupon. Server-owned: set from
+    // req.user by the controller, never from the request body. Null until auth exists.
+    created_by: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );
 
 couponSchema.path('redemption_count').validate(function (value) {
+  if (this.max_redemptions == null) return true; // max_redemptions' own `required` reports this
   return value <= this.max_redemptions;
 }, 'redemption_count cannot exceed max_redemptions');
 
@@ -61,5 +85,5 @@ couponSchema.methods.isExhausted = function () {
 
 const Coupon = mongoose.model('Coupon', couponSchema);
 
-module.exports = Coupon;
-module.exports.COUPON_TYPES = COUPON_TYPES;
+export default Coupon;
+export { COUPON_TYPES };

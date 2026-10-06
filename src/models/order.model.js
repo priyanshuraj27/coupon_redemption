@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { COUPON_TYPES } = require('./coupon.model');
+import mongoose from 'mongoose';
+import { COUPON_TYPES } from './coupon.model.js';
 
 const ORDER_STATUS = Object.freeze({
   PLACED: 'PLACED',
@@ -36,19 +36,27 @@ const orderSchema = new mongoose.Schema(
       enum: [...Object.values(COUPON_TYPES), null],
       default: null,
     },
+    // Snapshot of the coupon's discount at redemption time
+    discount_percent: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    // Amounts are optional: /redeem may be called without an order amount.
     amount: {
       type: Number,
-      required: true,
+      default: null,
       min: 0,
     },
     discount_amount: {
       type: Number,
-      default: 0,
+      default: null,
       min: 0,
     },
     final_amount: {
       type: Number,
-      required: true,
+      default: null,
       min: 0,
     },
     status: {
@@ -86,5 +94,5 @@ orderSchema.virtual('customer', {
 
 const Order = mongoose.model('Order', orderSchema);
 
-module.exports = Order;
-module.exports.ORDER_STATUS = ORDER_STATUS;
+export default Order;
+export { ORDER_STATUS };
